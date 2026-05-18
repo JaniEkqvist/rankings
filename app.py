@@ -16,7 +16,7 @@ num_competitions = st.sidebar.number_input(
 )
 
 num_ranks = st.sidebar.slider(
-    "Number of ranking positions", min_value=2, max_value=10, value=5
+    "Number of ranking positions", min_value=2, max_value=20, value=15
 )
 
 # ----------------------------
