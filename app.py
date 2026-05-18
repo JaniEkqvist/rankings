@@ -60,7 +60,21 @@ for i in range(num_competitions):
     competition_names.append(name)
 
 # -------------------------------------------------
-# SCORING SYSTEMS
+# BUILD DEFAULT POINT SYSTEMS PER COMPETITION
+# -------------------------------------------------
+default_point_systems = []
+
+for comp in range(DEFAULT_COMPETITIONS):
+    comp_points = {}
+    for rank, values in default_points.items():
+        if comp < len(values):
+            comp_points[rank] = values[comp]
+        else:
+            comp_points[rank] = 0
+    default_point_systems.append(comp_points)
+
+# -------------------------------------------------
+# SCORING SYSTEMS (FIXED)
 # -------------------------------------------------
 st.sidebar.header("Scoring Systems")
 
@@ -71,20 +85,23 @@ for comp in range(num_competitions):
         points = {}
 
         for r in range(0, num_ranks + 1):
-            # Load default if available
-            default_val = 0
-            if r in default_points and comp < len(default_points[r]):
-                default_val = default_points[r][comp]
+
+            # ✅ Use correct default per competition
+            if comp < len(default_point_systems):
+                default_val = default_point_systems[comp].get(r, 0)
+            else:
+                default_val = 0
 
             points[r] = st.number_input(
                 f"Rank {r}",
                 min_value=0,
                 max_value=100,
-                value=default_val,
-                key=f"comp{comp}_rank{r}"
+                value=int(default_val),
+                key=f"comp{comp}_rank{r}_v2"  # ✅ changed key to avoid stale cache
             )
 
         point_systems.append(points)
+
 
 # -------------------------------------------------
 # DATA GENERATION
