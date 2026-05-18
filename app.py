@@ -166,11 +166,22 @@ for i in range(num_competitions):
 # -------------------------------------------------
 st.subheader("Results")
 
-sort_col = st.selectbox("Sort by", filtered_df.columns)
-ascending = st.checkbox("Ascending", False)
+# Default sort = Total Points (descending)
+default_sort_index = list(filtered_df.columns).index("Total Points")
+
+sort_col = st.selectbox(
+    "Sort by",
+    filtered_df.columns,
+    index=default_sort_index
+)
+
+# Default descending for Total Points
+ascending = st.checkbox(
+    "Ascending",
+    value=False if sort_col == "Total Points" else True
+)
 
 filtered_df = filtered_df.sort_values(by=sort_col, ascending=ascending)
-
 st.dataframe(filtered_df, use_container_width=True)
 
 # -------------------------------------------------
