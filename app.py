@@ -132,4 +132,3 @@ st.download_button("📥 Download CSV", csv, "ranking_results.csv")
 # ----------------------------
 if num_ranks ** num_competitions > 50000:
     st.warning("⚠️ Large dataset — may be slow. Consider reducing size.")
-``
