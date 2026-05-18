@@ -6,47 +6,93 @@ st.set_page_config(layout="wide")
 
 st.title("🏆 Multi-Competition Ranking Analyzer")
 
-# ----------------------------
-# GLOBAL SETTINGS
-# ----------------------------
+st.info("Rank 0 = Did not participate / no valid result")
+
+# -------------------------------------------------
+# DEFAULT DATA (YOUR TABLE)
+# -------------------------------------------------
+default_names = ["Vätsäri", "Karjala", "Etelä"]
+
+default_points = {
+    0: [0, 0, 0],
+    1: [50, 30, 20],
+    2: [40, 24, 16],
+    3: [36, 22, 14],
+    4: [32, 19, 13],
+    5: [27, 16, 11],
+    6: [24, 14, 10],
+    7: [21, 12, 9],
+    8: [18, 10, 8],
+    9: [15, 8, 7],
+    10: [13, 7, 6],
+    11: [11, 6, 5],
+    12: [9, 5, 4],
+    13: [7, 4, 3],
+    14: [5, 3, 2],
+    15: [3, 2, 1],
+}
+
+DEFAULT_RANKS = max(default_points.keys())
+DEFAULT_COMPETITIONS = len(default_names)
+
+# -------------------------------------------------
+# CONFIG
+# -------------------------------------------------
 st.sidebar.header("Configuration")
 
 num_competitions = st.sidebar.number_input(
-    "Number of competitions", min_value=1, max_value=6, value=3
+    "Number of competitions", min_value=1, max_value=6, value=DEFAULT_COMPETITIONS
 )
 
 num_ranks = st.sidebar.slider(
-    "Number of ranking positions", min_value=2, max_value=20, value=15
+    "Max ranking", min_value=1, max_value=20, value=DEFAULT_RANKS
 )
 
-# ----------------------------
-# BUILD SCORING SYSTEMS
-# ----------------------------
+# -------------------------------------------------
+# COMPETITION NAMES (EDITABLE)
+# -------------------------------------------------
+st.sidebar.header("Competition Names")
+
+competition_names = []
+for i in range(num_competitions):
+    default_name = default_names[i] if i < len(default_names) else f"Comp{i+1}"
+    name = st.sidebar.text_input(f"Competition {i+1} name", default_name, key=f"name{i}")
+    competition_names.append(name)
+
+# -------------------------------------------------
+# SCORING SYSTEMS
+# -------------------------------------------------
 st.sidebar.header("Scoring Systems")
 
 point_systems = []
 
 for comp in range(num_competitions):
-    with st.sidebar.expander(f"Competition {comp+1} Scoring", expanded=False):
+    with st.sidebar.expander(f"{competition_names[comp]} Scoring", expanded=False):
         points = {}
-        for r in range(1, num_ranks + 1):
-            default_val = max(num_ranks - r + 1, 0)  # simple default
+
+        for r in range(0, num_ranks + 1):
+            # Load default if available
+            default_val = 0
+            if r in default_points and comp < len(default_points[r]):
+                default_val = default_points[r][comp]
+
             points[r] = st.number_input(
-                f"Rank {r} points (Comp {comp+1})",
+                f"Rank {r}",
                 min_value=0,
                 max_value=100,
                 value=default_val,
                 key=f"comp{comp}_rank{r}"
             )
+
         point_systems.append(points)
 
-# ----------------------------
-# GENERATE COMBINATIONS
-# ----------------------------
+# -------------------------------------------------
+# DATA GENERATION
+# -------------------------------------------------
 @st.cache_data
-def generate_data(num_competitions, num_ranks, point_systems):
+def generate_data(num_competitions, num_ranks, point_systems, competition_names):
     combinations = list(
-        itertools.product(range(1, num_ranks + 1), repeat=num_competitions)
+        itertools.product(range(0, num_ranks + 1), repeat=num_competitions)
     )
 
     data = []
@@ -57,12 +103,12 @@ def generate_data(num_competitions, num_ranks, point_systems):
 
         for i in range(num_competitions):
             rank = combo[i]
-            points = point_systems[i].get(rank, 0)
+            pts = point_systems[i].get(rank, 0)
 
-            row[f"Comp{i+1} Rank"] = rank
-            row[f"Comp{i+1} Points"] = points
+            row[f"{competition_names[i]} Rank"] = rank
+            row[f"{competition_names[i]} Points"] = pts
 
-            total += points
+            total += pts
 
         row["Total Points"] = total
         data.append(row)
@@ -70,65 +116,14 @@ def generate_data(num_competitions, num_ranks, point_systems):
     return pd.DataFrame(data)
 
 
-df = generate_data(num_competitions, num_ranks, point_systems)
+df = generate_data(num_competitions, num_ranks, point_systems, competition_names)
 
-# ----------------------------
+# -------------------------------------------------
 # FILTERS
-# ----------------------------
+# -------------------------------------------------
 st.sidebar.header("Filters")
 
-min_points = st.sidebar.number_input("Min total points", 0, 1000, 0)
-max_points = st.sidebar.number_input("Max total points", 0, 1000, 1000)
+min_points = st.sidebar.number_input("Min total points", 0, 2000, 0)
+max_points = st.sidebar.number_input("Max total points", 0, 2000, 2000)
 
 filtered_df = df[
-    (df["Total Points"] >= min_points) &
-    (df["Total Points"] <= max_points)
-]
-
-# Rank filters dynamically
-for i in range(num_competitions):
-    selected = st.sidebar.multiselect(
-        f"Comp{i+1} Rank filter",
-        options=list(range(1, num_ranks + 1)),
-        key=f"filter_comp{i}"
-    )
-
-    if selected:
-        filtered_df = filtered_df[
-            filtered_df[f"Comp{i+1} Rank"].isin(selected)
-        ]
-
-# ----------------------------
-# SORTING
-# ----------------------------
-st.subheader("Results")
-
-sort_col = st.selectbox("Sort by", filtered_df.columns)
-ascending = st.checkbox("Ascending", value=False)
-
-filtered_df = filtered_df.sort_values(by=sort_col, ascending=ascending)
-
-st.dataframe(filtered_df, use_container_width=True)
-
-# ----------------------------
-# SUMMARY
-# ----------------------------
-st.subheader("Summary")
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Total combinations", len(filtered_df))
-col2.metric("Max points", filtered_df["Total Points"].max() if not filtered_df.empty else 0)
-col3.metric("Min points", filtered_df["Total Points"].min() if not filtered_df.empty else 0)
-
-# ----------------------------
-# DOWNLOAD
-# ----------------------------
-csv = filtered_df.to_csv(index=False)
-st.download_button("📥 Download CSV", csv, "ranking_results.csv")
-
-# ----------------------------
-# PERFORMANCE WARNING
-# ----------------------------
-if num_ranks ** num_competitions > 50000:
-    st.warning("⚠️ Large dataset — may be slow. Consider reducing size.")
